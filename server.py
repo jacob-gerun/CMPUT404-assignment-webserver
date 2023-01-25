@@ -1,6 +1,6 @@
 #  coding: utf-8 
 import socketserver
-
+from pathlib import Path
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,66 @@ class MyWebServer(socketserver.BaseRequestHandler):
     def handle(self):
         self.data = self.request.recv(1024).strip()
         print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+        print("REACHED HERE")
+        data = self.data.decode('utf-8')
+        method = data.split(' ')[0]
+        errCode = ''
+        contentType = ''
+        
+        if method == "GET":
+            path = data.split(' ')[1].split(' ')[0]
+            print(method,path)
+            if path == '/':
+                path = '/index.html'
+            buff = ''
+            try:
+
+                print("PATH IS: " + path)
+                
+                if '.' not in path:
+                    p = Path('www' + path)
+                    # HANDLE DIRECTORIES
+                    if p.is_dir():
+                        if path[-1] != '/':
+                            errCode = "301 Moved Permanently"
+                            self.request.sendall(bytearray("HTTP/1.1 {errCode}\nHost:localhost:8000\nLocation:{path}+/\n\n",'utf-8')) 
+                            return
+                        else:
+                            with open("www" + path + 'index.html','r') as f:
+                                buff = f.read()
+                            errCode = '200 OK'
+                            contentType = 'text/html'
+                            header = f"HTTP/1.1 {errCode}\nHost:localhost:8000\nContent-type:{contentType}\n\n"
+                            self.request.sendall(bytearray((header + buff),'utf-8')) 
+                    else:
+                        self.request.sendall(bytearray("HTTP/1.1 404 Not Found\n\n",'utf-8'))
+                        return  
+        
+                else:
+                    with open("www" +path,'r') as f:
+                        buff = f.read()
+                    errCode = '200 OK'   
+                    if path.split('.')[1] == 'html':
+                        contentType = 'text/html'
+                    elif path.split('.')[1] == 'css':
+                        contentType = 'text/css'
+            except IsADirectoryError:
+                print("DIRECTORY ERROR")
+                #self.request.sendall(bytearray("404 Not Found",'utf-8'))
+                errCode = '301 Moved Permanently'
+            except FileNotFoundError:
+                print("FILE NOT FOUND")
+                errCode = '404 Not Found'
+                #self.request.sendall(bytearray("404 Not Found",'utf-8'))
+
+            header = f"HTTP/1.1 {errCode}\nHost:localhost:8000\nContent-type:{contentType}\n\n"
+            self.request.sendall(bytearray((header + buff),'utf-8')) 
+        else:
+            self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\n\n",'utf-8'))
+       
+        
+        #self.request.sendall(bytearray("200 OK",'utf-8'))
+
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
