@@ -1,6 +1,7 @@
 #  coding: utf-8 
 import socketserver
 from pathlib import Path
+import re
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,14 +48,23 @@ class MyWebServer(socketserver.BaseRequestHandler):
             try:
 
                 print("PATH IS: " + path)
-                
-                if '.' not in path:
+                isFile = False
+                temp = path if path[-1] == '/' else path + '/'
+                isFile = True if '.' in temp.split('/')[-2] else False
+                if not isFile:
                     p = Path('www' + path)
                     # HANDLE DIRECTORIES
                     if p.is_dir():
+                        gaurdPattern = re.compile(r"/\.\.\./", re.IGNORECASE)
+                        allPattern = re.compile(r"(^.)+)")
+                        print("GUARD PATTERN",len(re.findall(gaurdPattern, path)),"all pattern",len(re.findall(allPattern, path)))
+                        if len(re.findall(gaurdPattern, path)) <= re.findall(allPattern, path):
+                            self.request.sendall(bytearray("HTTP/1.1 404 Not Found\n\n",'utf-8'))
+                            print("GUARD PATTERN",len(re.findall(gaurdPattern, path)),"all pattern",len(re.findall(allPattern, path)))
+                            return  
                         if path[-1] != '/':
                             errCode = "301 Moved Permanently"
-                            self.request.sendall(bytearray("HTTP/1.1 {errCode}\nHost:localhost:8000\nLocation:{path}+/\n\n",'utf-8')) 
+                            self.request.sendall(bytearray(f"HTTP/1.1 {errCode}\nHost:localhost:8000\nLocation:{path+'/'}\n\n",'utf-8')) 
                             return
                         else:
                             with open("www" + path + 'index.html','r') as f:
@@ -62,7 +72,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
                             errCode = '200 OK'
                             contentType = 'text/html'
                             header = f"HTTP/1.1 {errCode}\nHost:localhost:8000\nContent-type:{contentType}\n\n"
-                            self.request.sendall(bytearray((header + buff),'utf-8')) 
+                            self.request.sendall(bytearray((header + buff),'utf-8'))
+                            return
                     else:
                         self.request.sendall(bytearray("HTTP/1.1 404 Not Found\n\n",'utf-8'))
                         return  
