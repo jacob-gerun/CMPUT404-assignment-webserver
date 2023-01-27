@@ -112,6 +112,8 @@ class MyWebServer(socketserver.BaseRequestHandler):
 
 def shouldGaurd(path):
     #print("GUARD PATTERN",path.count("/.."),"dir count",(path.count("/")/2) - path.count("/.."))
+    path = path.rstrip('/')
+    path = path + '/'
     if path.count("/..") > (path.count("/")/2) - path.count("/.."):
         return True
     return False
